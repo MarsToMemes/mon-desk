@@ -12,13 +12,14 @@ var CK=window.CK,u=CK.u;
 var COLS=12,ROW=10,GAP=16;
 var VIEWS0=[
   {id:"home",name:"Accueil",key:"0"},
-  {id:"journee",name:"Journée",key:"1"},
-  {id:"macro",name:"Signaux",key:"2"},
-  {id:"screener",name:"Screener",key:"3"},
-  {id:"liq",name:"Liquidations",key:"4"},
-  {id:"news",name:"News",key:"5"},
-  {id:"veille",name:"Agent",key:"6"},
-  {id:"net",name:"Connexions",key:"7"}
+  {id:"or",name:"Or",key:"1"},
+  {id:"journee",name:"Journée",key:"2"},
+  {id:"macro",name:"Signaux",key:"3"},
+  {id:"screener",name:"Screener",key:"4"},
+  {id:"liq",name:"Liquidations",key:"5"},
+  {id:"news",name:"News",key:"6"},
+  {id:"veille",name:"Agent",key:"7"},
+  {id:"net",name:"Connexions",key:"8"}
 ];
 /* Espaces décochés dans le Studio : retirés de la navigation */
 var VIEWS=VIEWS0.filter(function(v){var e=(CK.cfg&&CK.cfg().espaces)||{};return v.id==="home"||e[v.id]!==false;});VIEWS.forEach(function(v,i){if(v.id!=="home")v.key=String(i);});
@@ -26,6 +27,7 @@ function viewOn(id){return VIEWS.some(function(v){return v.id===id;});}
 /* « Mondes » = l'écran de sélection (aucun bloc) ; chaque monde a sa grille */
 var DEFAULTS={
   home:[],
+  or:[{id:"orchart",x:0,y:0,w:8,h:84},{id:"ormoteurs",x:8,y:0,w:4,h:84},{id:"orflux",x:0,y:84,w:8,h:62},{id:"events",x:8,y:84,w:4,h:62},{id:"news",x:0,y:146,w:12,h:70}],
   journee:[{id:"day",x:0,y:0,w:12,h:33},{id:"levels",x:0,y:33,w:5,h:50},{id:"opts",x:5,y:33,w:7,h:50},{id:"events",x:0,y:83,w:7,h:50},{id:"deriv",x:7,y:83,w:5,h:34}],
   macro:[{id:"map",x:0,y:0,w:12,h:82},{id:"corr",x:0,y:82,w:12,h:40}],
   screener:[{id:"screener",x:0,y:0,w:12,h:84},{id:"movers",x:0,y:84,w:12,h:40}],
@@ -36,9 +38,9 @@ var DEFAULTS={
 };
 /* Où mène « Ouvrir » depuis un bloc */
 var DOOR={day:"journee",map:"macro",events:"journee",screener:"screener",liq:"liq",deriv:"liq",movers:"liq",news:"news"};
-var LAYV="9";
-var MIN={veille:[6,40],corr:[3,30],levels:[3,30],opts:[3,30],book:[3,30],net:[6,40],day:[6,28],map:[3,36],events:[2,24],deriv:[3,16],movers:[3,26],liq:[3,40],news:[3,24],screener:[3,36]};
-var NAMES={veille:"Agent de veille",corr:"Corrélations du BTC",levels:"Niveaux clés",opts:"Options Deribit",book:"Carnet d'ordres agrégé",net:"Connexions",day:"Journée de trading",map:"Signaux",events:"Agenda éco",deriv:"Dérivés",liq:"Liquidations",movers:"Top mouvements",screener:"Screener",news:"News"};
+var LAYV="10";
+var MIN={orchart:[6,50],ormoteurs:[3,30],orflux:[4,36],veille:[6,40],corr:[3,30],levels:[3,30],opts:[3,30],book:[3,30],net:[6,40],day:[6,28],map:[3,36],events:[2,24],deriv:[3,16],movers:[3,26],liq:[3,40],news:[3,24],screener:[3,36]};
+var NAMES={orchart:"Or · graphique",ormoteurs:"Moteurs de l'or",orflux:"Flux de l'or",veille:"Agent de veille",corr:"Corrélations du BTC",levels:"Niveaux clés",opts:"Options Deribit",book:"Carnet d'ordres agrégé",net:"Connexions",day:"Journée de trading",map:"Signaux",events:"Agenda éco",deriv:"Dérivés",liq:"Liquidations",movers:"Top mouvements",screener:"Screener",news:"News"};
 var grid,all={},view="home",lay=[],editing=false,stacked=false,ph=null;
 var reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -52,7 +54,7 @@ function load(){
   if(mine&&mine.layout&&CK.ls("layoutV")!==LAYV)c=CK.BAKED.layout;
   var obj=c&&typeof c==="object"&&!Array.isArray(c)?c:{};
   VIEWS.forEach(function(v){var a=clean(obj[v.id]);all[v.id]=a.length?a:copy(DEFAULTS[v.id]);all[v.id].forEach(clamp);});
-  var last=CK.ls("view");view=all[last]?last:"home";lay=all[view];resolve(null);
+  var last=CK.ls("view");view=all[last]?last:(all.or?"or":"home");lay=all[view];resolve(null);
 }
 function clamp(it){var m=MIN[it.id]||[3,16];it.w=Math.max(m[0],Math.min(COLS,Math.round(it.w)));it.h=Math.max(m[1],Math.round(it.h));it.x=Math.max(0,Math.min(COLS-it.w,Math.round(it.x)));it.y=Math.max(0,Math.round(it.y));}
 function hit(a,b){return a!==b&&a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}

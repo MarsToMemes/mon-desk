@@ -11,6 +11,7 @@
 "use strict";
 var CK=window.CK,u=CK.u,esc=u.esc;
 var W0=[
+  {v:"or",name:"Or",key:"1",col:"#E8B931",desc:"L'or en intraday : niveaux du jour, moteurs et flux du perpétuel."},
   {v:"journee",name:"Journée",key:"1",col:"#E9C46A",desc:"Sessions, annonces et dérivés : où en est la journée."},
   {v:"macro",name:"Signaux",key:"2",col:"#7FA8F0",desc:"Dix indicateurs, une direction chacun, avec la preuve."},
   {v:"screener",name:"Screener",key:"3",col:"#FF8A3D",desc:"Les cryptos qui préparent un mouvement."},
@@ -64,6 +65,14 @@ function P(cx,cy,r,deg){var a=deg*Math.PI/180;return [cx+Math.cos(a)*r,cy+Math.s
 function f1(n){return n.toFixed(1);}
 function arcD(cx,cy,r,d0,d1){var a=P(cx,cy,r,d0),b=P(cx,cy,r,d1),lg=(d1-d0)%360>180?1:0;return "M"+f1(a[0])+" "+f1(a[1])+" A"+r+" "+r+" 0 "+lg+" 1 "+f1(b[0])+" "+f1(b[1]);}
 var ART={
+  or:function(d,tips){
+    var g=CK.gold?CK.gold.summary():{closes:[]},c=g.closes||[],s='';
+    if(c.length>1){var mn=Math.min.apply(null,c),mx=Math.max.apply(null,c),rg=mx-mn||1,pts=c.map(function(v,i){return f1(30+i*(340/(c.length-1)))+" "+f1(214-(v-mn)/rg*110);});
+      s+='<path class="or-ar" d="M'+pts.join(" L")+' L370 230 L30 230 Z"/><path class="or-sp" d="M'+pts.join(" L")+'"/>';}
+    else s+='<line class="mid" x1="30" y1="170" x2="370" y2="170"/>';
+    s+='<text class="big" x="200" y="58">'+(g.px?u.px(g.px):"—")+'</text>';
+    if(g.ch!=null)s+='<text class="lb" x="200" y="84"><tspan class="'+(g.ch>0?"up":g.ch<0?"down":"")+'">'+u.pct(g.ch)+'</tspan> depuis l\'ouverture</text>';
+    return s;},
   journee:function(d,tips){
     var cx=200,cy=130,R=86,h2d=function(h){return h/24*360-90;},s='';
     for(var h=0;h<24;h++){var maj=h%6===0,a=P(cx,cy,R+10,h2d(h)),b=P(cx,cy,R+(maj?22:16),h2d(h));s+='<line class="tk'+(maj?" mj":"")+'" x1="'+f1(a[0])+'" y1="'+f1(a[1])+'" x2="'+f1(b[0])+'" y2="'+f1(b[1])+'"/>';
@@ -135,6 +144,7 @@ function art(i,d,tips){return '<svg class="w-art" viewBox="0 0 400 260" preserve
 /* ---------- Chiffres clés + « À retenir » ---------- */
 function stats(i,d){
   var now=d.now;switch(W[i].v){
+    case "or":var g=CK.gold?CK.gold.summary():{};return [[g.px?u.px(g.px):"—","once d'or ($)"],[g.ch!=null?u.pct(g.ch):"—","depuis l'ouverture",g.ch>0?"up":g.ch<0?"down":""],[g.sess?g.sess.n:"—","maintenant"]];
     case "journee":var op=d.sess.filter(function(s){return s.open;}).map(function(s){return s.n;}),nx=agenda(d)[0];
       return [[u.parisTime(now),"heure de Paris"],[op.length?op.join(" + "):"Aucune","session ouverte"],nx?[cd(nx.ms),"avant "+nx.t,nx.hot?"down":""]:["—","prochain rendez-vous"]];
     case "macro":return [[String(d.fav),"favorables","up"],[String(d.def),"défavorables","down"],[String(d.neu),"neutres"]];
@@ -147,6 +157,11 @@ function stats(i,d){
 }
 function insights(i,d){
   var now=d.now;switch(W[i].v){
+    case "or":var g2=CK.gold?CK.gold.summary():{},L3=[],dx=CK.S&&CK.S.mk&&CK.S.mk.DXY;
+      if(g2.haut)L3.push(["↑","Au-dessus · <b>"+u.px(g2.haut.prix)+"</b> · "+esc(g2.haut.nom),"up"]);
+      if(g2.bas)L3.push(["↓","En dessous · <b>"+u.px(g2.bas.prix)+"</b> · "+esc(g2.bas.nom),"down"]);
+      if(dx&&dx.ch!=null)L3.push(["$","Dollar <b>"+u.pct(dx.ch)+"</b> · "+(dx.ch>0?"pèse sur l'or":"soutient l'or"),dx.ch>0?"down":"up"]);
+      return L3.length?L3:[["◷","Chargement des niveaux de l'or…",""]];
     case "journee":return agenda(d).slice(0,3).map(function(x){return [x.hot?"!":x.k==="hi"?"●":x.k==="md"?"●":"◷",'<b>'+cd(x.ms)+'</b> · '+esc(x.t),x.hot?"down":x.k==="hi"?"down":x.k==="md"?"warn":""];});
     case "macro":return d.F.filter(function(f){return !f.na&&f.impact;}).sort(function(a,b){return (b.str||0)-(a.str||0);}).slice(0,3).map(function(f){var c=CK.stClass(f);return [c==="fav"?"▲":"▼",'<b>'+esc(f.nm)+'</b> · '+esc(f.label||""),c==="fav"?"up":"down"];});
     case "screener":return d.rows.slice(0,3).map(function(x,k){return [String(k+1),'<b>'+esc(x.n)+'</b> · '+esc(x.px)+' · <span class="'+(x.up?"up":"down")+'">'+esc(x.ch)+'</span>',""];});
