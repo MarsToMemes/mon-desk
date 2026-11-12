@@ -10,7 +10,7 @@ Déjà fait avant cette spec : l'or ouvre la barre du haut (`LEAD_STRIP` dans `c
 
 ## Écran
 
-Nouvel espace `or`, nom « Or », touche 1, couleur `#E9C46A`. Les autres espaces se décalent d'une touche.
+Nouvel espace `or`, nom « Or », touche 1, couleur `#E8B931` (distincte du jaune de « Journée »). Les autres espaces se décalent d'une touche.
 
 Grille (12 colonnes) :
 
@@ -35,7 +35,7 @@ Les hauteurs `h` suivent celles des blocs comparables existants (`liq` 84, `even
   - niveaux ronds : multiples de 50 $ dans la fenêtre visible, et de 10 $ à moins de 0,5 % du prix.
 - En-tête : prix en direct, variation depuis l'ouverture du jour, distance (en $ et en %) au premier niveau au-dessus et en dessous, heure de Paris et session en cours (Asie / Londres / New York / hors séance).
 - Bouton « Ouvrir dans TradingView » : `CK.openChart("OANDA:XAUUSD","Or")` (fonction existante).
-- Week-end (samedi, et dimanche avant 23:00 Paris) : bandeau « Marché de l'or fermé, le perpétuel OKX continue de coter ».
+- Week-end (du vendredi 23:00 au lundi 00:00, heure de Paris) : bandeau « Marché de l'or fermé, le perpétuel OKX continue de coter ».
 
 ### 2. Moteurs de l'or (`ormoteurs`)
 Quatre lignes : Dollar (DXY), Taux US 10 ans, Argent, Ratio or/argent. Pour chacune : valeur, variation du jour, et une pastille d'effet sur l'or :
@@ -46,8 +46,8 @@ Quatre lignes : Dollar (DXY), Taux US 10 ans, Argent, Ratio or/argent. Pour chac
 Variation sous 0,05 % (ou 1 pb pour le taux) → pastille neutre.
 
 ### 3. Flux & positionnement (`orflux`)
-- **Funding** du perpétuel or : OKX, Binance, Bybit (taux actuel, annualisé en info-bulle).
-- **Open interest** total (en $) et variation sur 1 h, à partir d'OKX (et Binance/Bybit quand disponibles).
+- **Funding** du perpétuel or : OKX, Binance, Bybit (taux par période ; les périodes diffèrent selon la plateforme, ex. 4 h sur Binance).
+- **Open interest** total (en $, OKX + Binance + Bybit) et variation sur 1 h mesurée sur l'historique 5 min de Bybit.
 - **Liquidations or en direct** : liste des dernières (côté long/short, montant en $, plateforme, heure), total long/short sur 1 h. Seuil d'affichage : 1 000 $.
 
 ### 4–5. Agenda et news
@@ -65,7 +65,8 @@ Si aucun espace n'a été mémorisé (`CK.ls("view")` vide), le Desk s'ouvre sur
   - `worlds.js` : entrée `{v:"or",name:"Or",col:"#E9C46A",desc:…}` en tête de `W0`.
   - `page.html` : trois `<section class="mod" data-mod="…">` sur le modèle existant.
   - `core.js` : `or:true` dans `espaces` de `DEF`, modules `orchart/ormoteurs/orflux:true`, démarrage `CK.gold.boot()`, export de `loadGold` partagé (une seule requête TradingView sert la barre et l'espace).
-  - `net.js` : source « Or (perpétuel) » dans `SRC` pour l'espace Connexions.
+  - `ui.js` : case « Or » dans les espaces du Studio.
+  - Espace Connexions : rien à ajouter, les appels or sont comptés sous les sources existantes (OKX, Binance, Bybit, TradingView).
   - `worlds.css` : styles en fin de fichier, classes préfixées `or-…`, thèmes sombre et clair, responsive (blocs empilés sous 900 px).
 - Le code crypto existant (prix, screener, liquidations BTC, agent) n'est pas modifié dans sa logique.
 
