@@ -23,9 +23,8 @@ const CHAINES = { walterbloomberg: "Walter Bloomberg", WatcherGuru: "Watcher Gur
   arkhamintelligence: "Arkham", cryptoquant_official: "CryptoQuant", wublockchainenglish: "Wu Blockchain", binance_announcements: "Binance", bybit_announcements: "Bybit", okxannouncements: "OKX" };
 const BALEINE_MIN_USD = 50e6;
 const ACTIFS = {                     // ct = taille d'un contrat OKX ; move = % sur 5 min ; liq = liquidations OKX sur 5 min ($)
+  XAU: { ct: 0.001, move: 0.15, liq: 1.5e5, news: 0.1, glisse: 0.25 }, // or : perpétuel OKX XAU-USDT-SWAP (l'or bouge ~3 fois moins que le BTC)
   BTC: { ct: 0.01, move: 0.4, liq: 1.5e6, news: 0.2, glisse: 0.4 },   // glisse = % cumulé sur 15 min
-  ETH: { ct: 0.1, move: 0.5, liq: 0.7e6, news: 0.25, glisse: 0.55 },
-  SOL: { ct: 1, move: 0.7, liq: 0.4e6, news: 0.35, glisse: 0.8 },
 };
 const REGLES = { oi: 3, volume: 3, dxyBougie: 3, dxyMin: 0.05, eurVolume: 2.5, petrole: 1, taux: 0.04, pause: 10 * 6e4, suivi: 90 * 6e4 };
 const BUDGET_JOUR = 130;             // appels IA maximum par jour, toutes IA confondues (une lecture = un appel)
@@ -34,6 +33,7 @@ const NEWS_MOTS = [
   [6, /\b(FOMC|RATE (DECISION|CUT|HIKE)|CUTS? RATES|HIKES? RATES|POWELL|FED CHAIR|EMERGENCY (RATE|MEETING|CUT|HIKE|FED|LIQUIDITY|LENDING)|CPI|NONFARM|NFP|PCE|TARIFFS?|SANCTIONS?|WAR\b|MISSILES?|AIRSTRIKES?|INVADES?|INVASION|HORMUZ|NUCLEAR|HACK(ED)?|EXPLOIT(ED)?|DRAINED|BANKRUPT|INSOLVEN|HALTS? WITHDRAWALS?|DEPEG|BITCOIN RESERVE|ETF APPROV|APPROVES? .{0,20}ETF)/i],
   [4, /\b(FED|FEDERAL RESERVE|TREASURY|YIELDS?|INFLATION|JOBLESS|PAYROLLS?|GDP|RECESSION|ECB|BOJ|PBOC|TRUMP|WHITE HOUSE|SEC\b|CFTC|ETF|BLACKROCK|STRATEGY (BOUGHT|ACQUIRE)|SAYLOR|LIQUIDAT|BINANCE|COINBASE|UPBIT|BITHUMB|WILL LIST|DELIST|STABLECOIN|TETHER|CIRCLE|SHUTDOWN|DEFAULT|IRAN|ISRAEL|CHINA|RUSSIA|UKRAINE|OPEC|CRUDE|OIL)\b/i],
 ];
+const NEWS_OR = /\b(GOLD|XAU|BULLION|PRECIOUS METALS?|SILVER|CENTRAL BANKS? (BUY|BOUGHT|PURCHASE|GOLD)|SAFE[- ]HAVEN|REAL YIELDS?|COMEX|SPDR GOLD|GLD)\b/i;
 const NEWS_CRYPTO = /\b(BTC|BITCOIN|ETH|ETHER(EUM)?|SOL(ANA)?|CRYPTO|STABLECOIN|ETF|BINANCE|COINBASE|TETHER|USDT|USDC|DEFI)\b/i;
 /* Bilan : 1 h après chaque message qui annonce un sens, l'agent vérifie s'il a vu juste (seuil de variation par actif, en %) */
 const IA_ORDRE_LECTURE = ["gemini", "groq", "gemlite", "openrouter", "workersai"];   // pour une lecture : Flash, puis Groq, puis Flash-Lite
@@ -49,7 +49,7 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
     if (request.method !== "GET") return new Response("Méthode non autorisée", { status: 405, headers: CORS });
     const url = new URL(request.url);
-    if (url.pathname === "/") return texte("Relais et agent IA du Desk Captain Trading. Route : /tg");
+    if (url.pathname === "/") return texte("Relais et agent IA du Desk (or + BTC). Route : /tg");
     if (url.pathname === "/diag") { let d = null; try { d = env.DESK ? await env.DESK.get("diag") : null; } catch (e) {} return new Response(JSON.stringify({ maintenant: Date.now(), kv: !!env.DESK, ia: !!env.AI, gemini: !!env.GEMINI_KEY, groq: !!env.GROQ_KEY, openrouter: !!env.OPENROUTER_KEY, derniere_erreur: d ? JSON.parse(d) : "aucune", dernier_tour: await (async () => { try { const p = env.DESK ? JSON.parse(await env.DESK.get("public") || "{}") : {}; return p.maj ? { il_y_a_s: Math.round((Date.now() - p.maj) / 1000), messages: (p.feed || []).length, appels_ia: p.ia ? p.ia.n : 0, diag: p.diag || null } : "aucun"; } catch (e) { return "illisible"; } })() }), { headers: { ...CORS, "content-type": "application/json; charset=utf-8" } }); }
     if (url.pathname === "/point") return new Response(JSON.stringify(await pointMaintenant(env)), { headers: { ...CORS, "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
     if (url.pathname !== "/tg") return new Response("Introuvable", { status: 404, headers: CORS });
@@ -285,7 +285,8 @@ function toutesNews() { return (MEM.msgs || []).map((x) => ({ ts: x.ts, src: x.s
 function noteNews(n) {
   const t = n.t; let sc = 0;
   NEWS_MOTS.forEach(([w, re]) => { if (re.test(t)) sc = Math.max(sc, w); });
-  if (NEWS_CRYPTO.test(t)) sc += 2;
+  if (NEWS_OR.test(t)) sc += 3;           // l'or est l'actif principal du desk
+  else if (NEWS_CRYPTO.test(t)) sc += 2;
   if (/^(\*|BREAKING|JUST IN)/i.test(t)) sc += 1;
   /* Un piratage ne compte comme news majeure que s'il touche une grosse plateforme ou un gros montant */
   if (/\b(HACK(ED)?|EXPLOIT(ED)?|DRAINED)\b/i.test(t) && !/\b(BINANCE|COINBASE|BYBIT|OKX|KRAKEN|HYPERLIQUID|ETHEREUM|BITCOIN|SOLANA|TETHER|USDT|USDC|CIRCLE|LIDO|AAVE|UNISWAP)\b/i.test(t) && !/\$\s?([1-9]\d{2,}|\d+(\.\d+)?\s?(B|BN|BILLION))\s?(M|MN|MILLION)?\b/i.test(t)) sc = Math.min(sc, 3);
@@ -310,7 +311,7 @@ function prixActuel(b) { const k = (H["1m" + b] || {}).k || []; return k.length 
 /* ====================== L'IA ====================== */
 let MANUEL_COURANT = "";
 let REFLEX = "minimal";               // niveau de réflexion demandé à l'IA (« low » pour les lectures)
-const MANUEL = `Tu es l'agent IA du Desk Captain Trading : un trader expérimenté qui surveille BTC, ETH, SOL et la macro pour l'utilisateur.
+const MANUEL = `Tu es l'agent IA du Desk : un trader expérimenté qui surveille d'abord l'OR (XAU, perpétuel XAU-USDT), puis le BTC et la macro pour l'utilisateur, un trader d'or intraday.
 Le Desk a mesuré lui-même tous les chiffres fournis : ils sont exacts. Ton travail : dire ce qu'ils veulent dire et ce qui compte pour la suite.
 Règles absolues :
 1. N'invente aucun chiffre. Tout prix cité doit figurer dans les données (niveaux, prix). Écris les prix entre crochets : [82 430].
@@ -318,7 +319,7 @@ Règles absolues :
 3. Jamais de consigne d'achat ou de vente. Des scénarios conditionnels seulement (« si… alors… »).
 4. Français simple, phrases courtes, pas de remplissage, pas de jargon flou (momentum, sentiment, configuration).
 Lecture : prix ↑ OI ↑ = nouveaux acheteurs à levier ; prix ↑ OI ↓ = shorts qui rachètent ; prix ↓ OI ↑ = nouveaux vendeurs ; prix ↓ OI ↓ = longs purgés.
-Dollar en hausse ou taux en hausse = vent contraire pour la crypto. Une news suivie d'un move en 3 min explique le move ; un gros move sans news est technique ou lié au levier.
+Or : dollar en hausse ou taux réels en hausse = vent contraire ; tension géopolitique, peur sur les marchés ou achats des banques centrales = soutien. Crypto : dollar ou taux en hausse = vent contraire. Une news suivie d'un move en 3 min explique le move ; un gros move sans news est technique ou lié au levier.
 Une cassure n'est valide que sur une clôture de l'unité du niveau. Une mèche au-delà puis un retour = piège probable.
 Réponds uniquement avec le JSON demandé.`;
 function contexteIA(now) {
@@ -482,7 +483,8 @@ function photo(now) {
    ce qui invaliderait tout. Le Desk suit ensuite chaque scénario (déclenché ? cible atteinte ?). */
 const SCN = { dmin: 0.2, tmin: 0.4 };   // % : distance minimale prix → déclencheur, déclencheur → objectif
 const LECTURE = { evtPause: 30 * 6e4, evtFort: 15 * 6e4, evtJour: 14, garde: 48, publiees: 10, suivi: 4 * 36e5 };
-const MANUEL_ANALYSTE = `Tu es l'analyste du Desk Captain Trading : un trader crypto expérimenté qui explique le marché à un autre trader (BTC, ETH, SOL, dollar et macro).
+const MANUEL_ANALYSTE = `Tu es l'analyste du Desk : un trader d'or expérimenté qui explique le marché à un autre trader d'or intraday. Actif principal : l'OR (XAU, perpétuel XAU-USDT d'OKX). Actif secondaire : le BTC. Tu suis aussi le dollar et la macro.
+L'or d'abord : le titre, le résumé et le « pourquoi » parlent de l'or en priorité ; le BTC n'est commenté que s'il bouge ou s'il éclaire l'appétit pour le risque.
 Le Desk a mesuré tous les chiffres fournis : ils sont exacts. Ton travail est d'INTERPRÉTER, pas de décrire.
 Ce qu'on attend de toi :
 - Relier les faits entre eux. Un mouvement a une cause : news, dollar, taux, pétrole, actions, levier qui monte ou qui se purge, liquidations, cassure d'un niveau suivi par tout le monde. Dis laquelle, chiffre à l'appui. Si aucune cause n'est visible, dis-le (mouvement technique, marché sans acheteurs…).
@@ -490,12 +492,12 @@ Ce qu'on attend de toi :
 - Donner pour chaque actif un scénario haussier et un scénario baissier utiles : un déclencheur précis (clôture d'une unité de temps au-dessus ou sous un niveau des données) et une cible (un autre niveau des données).
 - Assurer la continuité : tu reçois ta lecture précédente et ce que ses scénarios ont donné. Dis franchement ce qui a marché, ce qui a raté et ce qui a changé.
 - Quand le marché est calme, dis-le et explique ce qui pourrait le réveiller (annonce, niveau proche, levier qui s'accumule).
-Tiens compte de la séance (champ « seance ») : à l'ouverture de Wall Street, le flux des actions explique souvent le mouvement. Ne relie un mouvement à une news que si le lien est plausible (une news sans rapport avec les marchés n'explique rien).
+Tiens compte de la séance (champ « seance ») : pour l'or, Londres (9 h, heure de Paris) et New York (14 h 30) font le volume ; à 14 h 30 les chiffres américains (CPI, emploi, PCE) font souvent bouger l'or en quelques minutes. Le marché de l'or est fermé du vendredi 23 h au lundi 0 h (heure de Paris) et chaque soir de 23 h à minuit : pendant ces heures le perpétuel cote dans un marché mince, dis-le et reste prudent sur les cassures. Ne relie un mouvement à une news que si le lien est plausible (une news sans rapport avec les marchés n'explique rien).
 Pour chaque scénario, choisis un déclencheur à au moins 0,2 % du prix actuel et un objectif à au moins 0,4 % au-delà du déclencheur : un niveau collé au prix n'est que du bruit.
 Chaque actif a une liste « faits » calculée par le Desk : elle fait foi. Ne la contredis jamais (si les faits disent « surtout des SHORTS », ne parle pas de purge des longs).
 Les montants s'écrivent comme dans les faits (k$, M$). La tendance que tu donnes est le sens le plus probable des 4 prochaines heures, cohérent avec ta lecture.
 Lecture du levier (open interest) : prix en hausse et OI en hausse = nouveaux acheteurs à levier (fragile si ça s'emballe) ; prix en hausse et OI en baisse = shorts qui rachètent (peut s'essouffler) ; prix en baisse et OI en hausse = nouveaux vendeurs ; prix en baisse et OI en baisse = longs purgés (souvent proche d'une fin de baisse).
-Dollar ou taux en hausse = vent contraire pour la crypto. Pétrole en forte hausse = risque d'inflation, donc de taux en hausse.
+Or : dollar (DXY) en hausse ou taux US en hausse = vent contraire ; dollar et taux en baisse = soutien. Tension géopolitique, peur sur les actions ou achats des banques centrales = soutien (valeur refuge). Une hausse de l'or avec un dollar aussi en hausse = demande de refuge forte. Crypto : dollar ou taux en hausse = vent contraire. Pétrole en forte hausse = risque d'inflation, donc de taux en hausse.
 Une cassure n'est valide que sur une clôture de l'unité du niveau. Une mèche au-delà puis un retour = piège probable.
 Règles absolues :
 1. N'invente aucun chiffre. Tout prix cité vient des données. Écris les prix entre crochets : [82 430].
@@ -504,7 +506,7 @@ Règles absolues :
 4. Français simple et direct, phrases courtes. Interdit : remplissage, généralités, « momentum », « sentiment », « configuration », « il convient de ».
 5. Ne recopie pas un chiffre sans dire ce qu'il veut dire.
 Réponds uniquement avec le JSON demandé.`;
-const FORMAT_LECTURE = `{"titre":"ce qui se passe, concret, 10 mots max","climat":"favorable|défavorable|neutre","resume":"2 phrases : la situation et ce qu'elle veut dire pour la suite","pourquoi":["une cause reliée à un chiffre, 22 mots max","une autre cause","une troisième si utile"],"depuis":"ce qui a changé depuis ta lecture précédente et si ses scénarios ont marché, 25 mots max (vide s'il n'y en a pas)","dollar":"dollar, taux, pétrole, actions et leur effet sur la crypto, 25 mots max","BTC":{"tendance":"hausse|baisse|range","lecture":"qui a la main et pourquoi, 30 mots max","hausse":{"si":"déclencheur précis, 12 mots max","niveau":83437,"cible":84348},"baisse":{"si":"déclencheur précis, 12 mots max","niveau":83150,"cible":82726}},"ETH":{"…":"même forme que BTC"},"SOL":{"…":"même forme que BTC"},"invalide":"ce qui changerait toute la lecture, 15 mots max","surveiller":"la chose n°1 à surveiller dans l'heure, 15 mots max"}`;
+const FORMAT_LECTURE = `{"titre":"ce qui se passe, concret, 10 mots max","climat":"favorable|défavorable|neutre","resume":"2 phrases : la situation et ce qu'elle veut dire pour la suite","pourquoi":["une cause reliée à un chiffre, 22 mots max","une autre cause","une troisième si utile"],"depuis":"ce qui a changé depuis ta lecture précédente et si ses scénarios ont marché, 25 mots max (vide s'il n'y en a pas)","dollar":"dollar, taux, pétrole, actions et leur effet sur l'or, 25 mots max","XAU":{"tendance":"hausse|baisse|range","lecture":"qui a la main sur l'or et pourquoi, 30 mots max","hausse":{"si":"déclencheur précis, 12 mots max","niveau":3912,"cible":3935},"baisse":{"si":"déclencheur précis, 12 mots max","niveau":3871,"cible":3850}},"BTC":{"…":"même forme que XAU"},"invalide":"ce qui changerait toute la lecture, 15 mots max","surveiller":"la chose n°1 à surveiller dans l'heure, 15 mots max"}`;
 
 const var15 = (q, n, px) => (q.length > n ? r2((px / q[q.length - 1 - n].c - 1) * 100) : null);
 function etatSc(sc) { if (!sc) return "aucun"; return (sc.si || "") + (sc.niv ? " (niveau " + fr(sc.niv) + (sc.cible ? ", cible " + fr(sc.cible) : "") + ")" : "") + " → " + (sc.ok ? "déclenché à " + hm(sc.dec) + ", cible atteinte à " + hm(sc.ok) : sc.dec ? "déclenché à " + hm(sc.dec) + ", cible pas encore atteinte" : "pas déclenché"); }
@@ -673,7 +675,7 @@ async function tour(env) {
   const st = ST = ST || neuf(); st.vu = st.vu || {}; st.cool = st.cool || {}; st.lectures = st.lectures || []; st.evt = st.evt || [];
   if (st.feed) delete st.feed; if (st.bil) delete st.bil; if (st.bil2) delete st.bil2;                     // ancien fil de messages (avant la v10)
   /* Données lentes gardées dans le stockage (bougies 1 h, 4 h, jour, agenda, historique du dollar) */
-  const CLES_LENTES = ["1HBTC", "4HBTC", "1DBTC", "1HETH", "4HETH", "1DETH", "1HSOL", "4HSOL", "1DSOL", "dxyHist", "cal"];
+  const CLES_LENTES = ["1HXAU", "4HXAU", "1DXAU", "1HBTC", "4HBTC", "1DBTC", "dxyHist", "cal"];
   if (!H._lent && env.DESK) { H._lent = 1; try { const L = await env.DESK.get("lent", { type: "json" }); if (L) CLES_LENTES.forEach((k) => { if (L[k] && !H[k]) H[k] = L[k]; }); } catch (e) {} }
   const avantLent = CLES_LENTES.map((k) => (H[k] ? H[k].t : 0)).join();
   await collecte(now);
@@ -704,7 +706,7 @@ async function tour(env) {
     if (fort && (!declencheur || imp > declencheur.imp)) declencheur = e;
   }
   for (const n of nouvellesNews(st, now)) {
-    const e = { ts: now, b: NEWS_CRYPTO.test(n.t) ? "CRYPTO" : "MACRO", type: "news", imp: n.sc >= 7 ? 3 : 2, txt: n.src + " : " + n.t.replace(/\s+/g, " ").slice(0, 200) };
+    const e = { ts: now, b: NEWS_OR.test(n.t) ? "OR" : NEWS_CRYPTO.test(n.t) ? "CRYPTO" : "MACRO", type: "news", imp: n.sc >= 7 ? 3 : 2, txt: n.src + " : " + n.t.replace(/\s+/g, " ").slice(0, 200) };
     st.evt.push(e);
     if (n.sc >= 7 && (!declencheur || e.imp > declencheur.imp)) declencheur = e;
   }

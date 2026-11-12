@@ -10,16 +10,18 @@
    Ce fichier affiche :
    1. la lecture du marché en cours, puis les lectures précédentes
       avec ce que leurs scénarios ont donné ;
-   2. des cartes vivantes (BTC, ETH, SOL, dollar) avec graphiques et niveaux ;
+   2. des cartes vivantes (or, BTC, dollar) avec graphiques et niveaux ;
    3. le Bilan (cibles atteintes) et l'onglet Conso (appels à chaque IA).
    ================================================================ */
 (function(){
 "use strict";
 var CK=window.CK,S=CK.S,u=CK.u,esc=u.esc,nf=u.nf;
+/* Prix en direct : spot OKX (b-USDT), sinon le perpétuel (b-USDT-SWAP), seul marché OKX pour l'or */
+function tkOf(b){return S.tick[b+"-USDT"]||S.tick[b+"-USDT-SWAP"];}
 
 /* ====================== RÉGLAGES ====================== */
 var REGLAGES={
-  actifs:["BTC","ETH","SOL"],
+  actifs:["XAU","BTC"],
   macro:{DXY:"TVC:DXY",TAUX_10A:"TVC:US10Y",NASDAQ:"NASDAQ:NDX",PETROLE:"FX:USOIL",OR:"TVC:GOLD"},
   notifier:2          // importance à partir de laquelle un message te notifie (1 à 3), réglable dans l'agent
 };
@@ -127,7 +129,7 @@ function ago(ts){var m=Math.round((Date.now()-ts)/6e4);return m<1?"à l'instant"
 function fk(n){n=+n||0;return n>=1e6?nf(n/1e6,1)+" M":n>=1e3?nf(n/1e3,n>=1e4?0:1)+" k":String(Math.round(n));}
 function trend(b,tf){var K=(V.k[b]||{})[tf];if(!K)return "";var x=resume(tf,K);return !x?"":x.tendance==="haussière"?"u":x.tendance==="baissière"?"d":"n";}
 var TYPES={glisse:["MOUVEMENT","#FFC266"],purgeL:["PURGE","var(--down)"],purgeS:["SQUEEZE","var(--up)"],move:["MOVE","#FFC266"],oi:["LEVIER","#7FA8F0"],vol:["VOLUME","#C3A6FF"],casse:["CASSURE","var(--up)"],meche:["PIÈGE","#FFC266"],news:["NEWS","#7FA8F0"],flash:["NEWS CHAUDE","#FF9F5A"],veille:["RONDE IA","#B8F36B"],dollar:["DOLLAR","#5FD3E6"],macro:["MACRO","#5FD3E6"],annonce:["ANNONCE","#C3A6FF"],suivi:["SUIVI","var(--muted)"],ia:["IA","#B8F36B"],brief:["BRIEF","#B8F36B"],lecture:["POINT","#B8F36B"]};
-var ACOL={BTC:"#F7931A",ETH:"#8C9EFF",SOL:"#14F195",USD:"#5FD3E6",BRIEF:"#B8F36B",LECTURE:"#B8F36B"};
+var ACOL={XAU:"#E8B931",BTC:"#F7931A",ETH:"#8C9EFF",SOL:"#14F195",USD:"#5FD3E6",BRIEF:"#B8F36B",LECTURE:"#B8F36B"};
 function agent(){return S.agent&&typeof S.agent==="object"?S.agent:null;}
 function lv(t){return esc(String(t||"")).replace(/\[([\d\s.,  ]+)\]/g,'<span class="g5-lv">$1</span>');}
 
@@ -167,7 +169,7 @@ function filtreNiv(nv){var o=famOn(),ok=function(l){return o[String(l.unite).toL
 function famChips(){var o=famOn();return '<div class="g9-fam" role="group" aria-label="Niveaux affichés">'+FAM.map(function(x){return '<button type="button" data-fam="'+x[0]+'" aria-pressed="'+o[x[0]]+'" style="--u:'+(UCOL[x[0]]||"#AEB3BC")+'"><i></i>'+x[1]+'</button>';}).join("")+'</div>';}
 /* Export TradingView : un indicateur Pine Script avec tes niveaux, à coller dans l'éditeur Pine */
 function pine(b){
-  var K=V.k[b]||{},k1=K["1m"]||[],tk=S.tick[b+"-USDT"],px=tk&&tk.last?tk.last:(k1.length?k1[k1.length-1].c:null);if(!px)return "";
+  var K=V.k[b]||{},k1=K["1m"]||[],tk=tkOf(b),px=tk&&tk.last?tk.last:(k1.length?k1[k1.length-1].c:null);if(!px)return "";
   var nv=niveaux(b,px,famOn()),L=nv.au_dessus.concat(nv.en_dessous),d=new Date().toLocaleString("fr-FR",{timeZone:"Europe/Paris",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
   var hex=function(u){return (UCOL[u]||"#AEB3BC").toUpperCase();},q=function(s){return String(s).replace(/"/g,"'").replace(/[^\x20-\x7E\u00C0-\u017F·]/g,"");};
   var s="//@version=5\n// Niveaux du Desk Captain Trading · "+b+" · "+d+" (heure de Paris)\n// À utiliser sur OKX:"+b+"USDT.P. Pour mettre à jour : recopie depuis le Desk.\nindicator(\"Niveaux Captain · "+b+"\", overlay=true, max_labels_count=50)\n";
@@ -183,7 +185,7 @@ function grandChart(b,tf,officiel){
   tf=tf||V.gtf||"1H";V.gtf=tf;GC0.b=b;var box=document.getElementById("chartBox");if(!box)return;
   if(document.getElementById("ovChart").hidden){document.getElementById("chartTitle").textContent=b+" · niveaux de l'agent";document.getElementById("chartLink").href="https://www.tradingview.com/chart/?symbol=OKX%3A"+b+"USDT.P";CK.openOv("ovChart");}
   if(GC&&GC.chart){try{GC.chart.remove();}catch(e){}GC=null;}
-  var K=V.k[b]||{},k1=K["1m"]||[],tk=S.tick[b+"-USDT"],px=tk&&tk.last?tk.last:(k1.length?k1[k1.length-1].c:null),nv=px?niveaux(b,px,famOn()):{au_dessus:[],en_dessous:[]},L=nv.au_dessus.concat(nv.en_dessous);
+  var K=V.k[b]||{},k1=K["1m"]||[],tk=tkOf(b),px=tk&&tk.last?tk.last:(k1.length?k1[k1.length-1].c:null),nv=px?niveaux(b,px,famOn()):{au_dessus:[],en_dessous:[]},L=nv.au_dessus.concat(nv.en_dessous);
   var barre='<div class="g8-bar">'+[["15m","15 min"],["1H","1 h"],["4H","4 h"]].map(function(z){return '<button type="button" data-g8tf="'+z[0]+'" aria-pressed="'+(!officiel&&tf===z[0])+'">'+z[1]+'</button>';}).join("")+'<span class="g8-sep"></span><button type="button" data-g8pine="1" title="Copier l’indicateur Niveaux Captain : à coller une seule fois dans TradingView, il se met ensuite à jour tout seul">Indicateur TradingView</button><button type="button" data-g8off="1" aria-pressed="'+!!officiel+'">TradingView officiel</button><span class="g8-note">'+(officiel?"Graphique TradingView (sans les niveaux de l'agent)":"Niveaux calculés par l'agent, mis à jour en direct")+'</span></div>';
   if(officiel){box.innerHTML=barre+'<div class="g8-wrap"><div id="g8tv" style="height:100%"></div></div>';
     var go=function(){new window.TradingView.widget({container_id:"g8tv",symbol:"OKX:"+b+"USDT.P",interval:tf==="15m"?"15":tf==="1H"?"60":"240",theme:"dark",autosize:true,locale:"fr",timezone:"Europe/Paris",style:"1",allow_symbol_change:false});};
@@ -220,7 +222,7 @@ function majGrand(){
   GC.se.setData(K.map(function(x){return {time:Math.floor(x.t/1000)+off,open:x.o,high:x.h,low:x.l,close:x.c};}));
   GC.vo.setData(K.map(function(x){return {time:Math.floor(x.t/1000)+off,value:x.v,color:x.c>=x.o?"rgba(124,255,178,.35)":"rgba(255,140,122,.35)"};}));
   var c=K.map(function(x){return x.c;}),m=[];for(var i=8;i<c.length;i++){var s2=0;for(var j=i-8;j<=i;j++)s2+=c[j];m.push({time:Math.floor(K[i].t/1000)+off,value:s2/9});}GC.ma.setData(m);
-  var k1=(V.k[b]||{})["1m"]||[],tk=S.tick[b+"-USDT"],px=tk&&tk.last?tk.last:(k1.length?k1[k1.length-1].c:null);if(!px)return;
+  var k1=(V.k[b]||{})["1m"]||[],tk=tkOf(b),px=tk&&tk.last?tk.last:(k1.length?k1[k1.length-1].c:null);if(!px)return;
   var nv=niveaux(b,px,famOn()),L=nv.au_dessus.concat(nv.en_dessous),lk=L.map(function(l){return l.prix;}).join("|");
   if(GC.lk!==lk){(GC.lines||[]).forEach(function(p){GC.se.removePriceLine(p);});
     GC.lines=L.map(function(l){var u=String(l.unite).toLowerCase(),col=UCOL[u]||"#AEB3BC";return GC.se.createPriceLine({price:l.prix,color:col,lineWidth:u==="semaine"||u==="jour"?2:1,lineStyle:u==="1h"||u==="15m"?2:0,axisLabelVisible:true,title:court(l.nom)+" · "+(UNOM[u]||u)});});GC.lk=lk;}
@@ -241,7 +243,7 @@ function nom(n){var s=String(n||"").split(" + ")[0].replace(/^plus haut (de la |
 /* Un signal capté par l'agent il y a moins de 6 min (cassure, purge, dollar…) allume la carte */
 function hot(b){var a=agent(),now=Date.now(),L=(a&&Array.isArray(a.signaux)?a.signaux:[]).filter(function(m){return m.b===b&&now-m.ts<6*6e4&&m.imp>=2;});return L[L.length-1]||null;}
 function card(b){
-  var K=V.k[b]||{},k1=K["1m"]||[],tk=S.tick[b+"-USDT"],px=tk&&tk.last?tk.last:(k1.length?k1[k1.length-1].c:null);
+  var K=V.k[b]||{},k1=K["1m"]||[],tk=tkOf(b),px=tk&&tk.last?tk.last:(k1.length?k1[k1.length-1].c:null);
   if(!px)return '<article class="g5-card"><header><b>'+b+'</b></header><div class="g5-wait">Connexion au marché…</div></article>';
   var m5=k1.length>6?(px/k1[k1.length-6].o-1)*100:null,ch=tk&&tk.open?(tk.last/tk.open-1)*100:null,lq=liqs(b)["15min"],tot=lq.longs_usd+lq.shorts_usd,oi=oiDelta(b,15),P=S.pos&&S.pos[b],fu=V.fund[b]?V.fund[b].r:null,h=hot(b),T=TYPES[h&&h.type]||null;
   return '<article class="g5-card'+(h?" hot":"")+'" style="--a:'+ACOL[b]+(T?";--h:"+T[1]:"")+'">'+
@@ -281,7 +283,7 @@ function scLigne(sc,d){if(!sc)return "";
     '<div class="g10-lv">'+(sc.niv?'<span>déclencheur <b class="num">'+fp(sc.niv)+'</b>'+(sc.nivN?' <small>'+esc(nom(sc.nivN))+'</small>':'')+'</span>':'')+(sc.cible?'<span>cible <b class="num">'+fp(sc.cible)+'</b>'+(sc.cibleN?' <small>'+esc(nom(sc.cibleN))+'</small>':'')+'</span>':'')+scEtat(sc)+'</div></div></div>';}
 /* v13 : une bande de terminal. Un seul panneau pour les trois actifs, une phrase d'état en clair par actif,
    une jauge (le prix entre support et résistance), des infobulles partout et une fiche « Comment lire ». */
-function prixDirect(b,x){var tk=S.tick[b+"-USDT"];return tk&&tk.last?tk.last:(x&&x.px);}
+function prixDirect(b,x){var tk=tkOf(b);return tk&&tk.last?tk.last:(x&&x.px);}
 function bornes(x){var v=[x.px,x.hausse&&x.hausse.niv,x.hausse&&x.hausse.cible,x.baisse&&x.baisse.niv,x.baisse&&x.baisse.cible].filter(function(z){return z>0;}),lo=Math.min.apply(null,v),hi=Math.max.apply(null,v),pad=(hi-lo)*0.1||x.px*0.002;return {lo:lo-pad,hi:hi+pad};}
 function pos(v,B){return Math.max(0,Math.min(100,(v-B.lo)/(B.hi-B.lo)*100));}
 function ecart(p,px){if(!p||!px)return "";var d=(p/px-1)*100;return (d>0?"+":"−")+nf(Math.abs(d),2)+" %";}
@@ -325,7 +327,7 @@ function aide(){return '<details class="g13-aide"'+(V.aide?" open":"")+'><summar
   '<p><b>Les petites lignes.</b> 1 h, 4 h, 24 h : variations du prix. Liq. : positions liquidées sur 1 h (rouge = acheteurs sortis, vert = vendeurs sortis). Survole un élément pour son explication.</p>'+
   '<p class="mu">Lecture de marché, pas un conseil d\'achat ou de vente.</p></div></details>';}
 function lectureHTML(L,old){
-  var C=CLIM[L.climat]||CLIM.n,B=["BTC","ETH","SOL"].filter(function(b){return L.actifs&&L.actifs[b];}),R=L.raison||{};
+  var C=CLIM[L.climat]||CLIM.n,B=["XAU","BTC","ETH","SOL"].filter(function(b){return L.actifs&&L.actifs[b];}),R=L.raison||{};
   var why=R.k==="event"?'⚡ '+esc(bref(R.txt)):R.k==="seance"?'⏱ '+esc(bref(R.txt)):R.k==="demande"?'à la demande':'lecture régulière';
   return (old?'':'<div class="g13-top"><span class="g13-live"><i></i>Agent</span><span class="g13-meta num">'+u.parisTime(L.ts)+' · '+ago(L.ts)+'</span><span class="g13-why"'+tip("Ce qui a déclenché cette lecture.")+'>'+why+'</span><span class="g10-sp"></span>'+anneau()+
       '<button type="button" class="g13-btn" data-act="aide" aria-label="Comment lire l\'agent" aria-expanded="'+!!V.aide+'">?</button><button type="button" class="g13-btn re" data-act="point"'+(V.pointBusy?' disabled':'')+'>'+(V.pointBusy?"Lecture…":"Relire")+'</button></div>'+aide())+
@@ -338,7 +340,7 @@ function lectureHTML(L,old){
 }
 /* Mise à jour en direct (toutes les 3 s) : prix, variation, position du point, distances aux niveaux, phrase d'état */
 function majLive(){var h=document.querySelector(".g13");if(!h)return;var Ld=derniere();
-  h.querySelectorAll(".g13-strip>.g13-a").forEach(function(c){var b=c.getAttribute("data-b"),tk=S.tick[b+"-USDT"],px=tk&&tk.last;if(!px)return;
+  h.querySelectorAll(".g13-strip>.g13-a").forEach(function(c){var b=c.getAttribute("data-b"),tk=tkOf(b),px=tk&&tk.last;if(!px)return;
     var p0=+c.getAttribute("data-px0"),g=c.querySelector(".g13-gauge"),e=c.querySelector(".g13-px");if(e)e.textContent=fp(px);
     var ch=c.querySelector(".g13-ch");if(ch&&p0){var dv=(px/p0-1)*100;ch.className="g13-ch num "+cl(dv);ch.textContent=sgn(dv)+" %";}
     if(g){var B={lo:+g.getAttribute("data-lo"),hi:+g.getAttribute("data-hi")},d=g.querySelector(".g13-dotl");if(d)d.style.setProperty("--x",pos(px,B).toFixed(2));
@@ -348,7 +350,7 @@ function majLive(){var h=document.querySelector(".g13");if(!h)return;var Ld=dern
   var r=h.querySelector(".g13-ring .p"),a=agent();if(r&&a&&a.prochaine){var m=Math.max(0,(a.prochaine-Date.now())/6e4);r.style.strokeDashoffset=(56.55*(1-Math.min(1,m/30))).toFixed(2);}
 }
 function resultat(x){var T=x&&x.tr;if(T)return T.res==="ok"?["ok","✓"]:T.res==="ko"?["ko","✕"]:["on","●"];var sc=x&&(x.hausse&&x.hausse.ok?x.hausse:x.baisse&&x.baisse.ok?x.baisse:null);return sc?["ok","✓"]:null;}
-function badges(L){var o="";["BTC","ETH","SOL"].forEach(function(b){var x=L.actifs&&L.actifs[b],r=resultat(x);if(!r)return;var s=x.tr?x.tr.s:(x.hausse&&x.hausse.ok?"hausse":"baisse");o+='<span class="g13-bd '+r[0]+'">'+(s==="hausse"?"▲":"▼")+' '+b+' '+r[1]+'</span>';});return o;}
+function badges(L){var o="";["XAU","BTC","ETH","SOL"].forEach(function(b){var x=L.actifs&&L.actifs[b],r=resultat(x);if(!r)return;var s=x.tr?x.tr.s:(x.hausse&&x.hausse.ok?"hausse":"baisse");o+='<span class="g13-bd '+r[0]+'">'+(s==="hausse"?"▲":"▼")+' '+b+' '+r[1]+'</span>';});return o;}
 function histo(){var L=lectures().slice(0,-1).reverse();if(!L.length)return "";
   return '<section class="g13-hi"><h3>Lectures précédentes</h3><p class="g13-hin">Ce que l\'agent a dit, et ce qui s\'est passé ensuite.</p>'+L.map(function(x){var C=CLIM[x.climat]||CLIM.n,R=x.raison||{};
     return '<details class="g13-old" data-lid="'+esc(x.id)+'"'+(V.open[x.id]?" open":"")+'><summary><span class="num g13-t">'+u.parisTime(x.ts)+'</span><span class="g13-dotc '+C[1]+'"></span><b>'+lv(x.titre)+'</b><span class="g13-rk">'+(R.k==="event"?"⚡":R.k==="seance"?"⏱":R.k==="demande"?"demandée":"")+'</span><span class="g13-bds">'+badges(x)+'</span></summary><div class="g13-oldb">'+lectureHTML(x,1)+'</div></details>';}).join("")+'</section>';}
@@ -439,7 +441,7 @@ function paint(){
 function paintCards(){var c=el("g5Cards");if(!c)return;c.innerHTML=REGLAGES.actifs.map(card).join("")+cardUSD();
   /* Les graphiques sont gardés d'un rafraîchissement à l'autre : on les replace dans la carte */
   REGLAGES.actifs.forEach(function(b){var ph=c.querySelector('[data-ch="'+b+'"]');if(!ph)return;var C=chart(b);if(!C)return;ph.replaceWith(C.el);setTimeout(function(){if(C.fit)cadrer(C);},80);
-    var K=V.k[b]||{},k1=K["1m"]||[],tk=S.tick[b+"-USDT"],px=tk&&tk.last?tk.last:(k1.length?k1[k1.length-1].c:null);if(px)try{majChart(b,px);}catch(e){}});}
+    var K=V.k[b]||{},k1=K["1m"]||[],tk=tkOf(b),px=tk&&tk.last?tk.last:(k1.length?k1[k1.length-1].c:null);if(px)try{majChart(b,px);}catch(e){}});}
 function build(){
   host.innerHTML='<div class="g5-top"><div class="g5-brand"><span class="g5-radar" aria-hidden="true"><i></i></span><div><b>AGENT IA</b><small>l\'analyste du Desk · une lecture toutes les 30 min</small></div></div>'+
     '<div class="g5-st" id="g5St"></div><div class="g5-tabs" role="tablist"><button type="button" role="tab" data-g5tab="live">Live</button><button type="button" role="tab" data-g5tab="bilan">Bilan</button><button type="button" role="tab" data-g5tab="conso">Conso IA</button></div></div>'+
