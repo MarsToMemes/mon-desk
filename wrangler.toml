@@ -1,0 +1,18 @@
+# Relais et agent IA du Desk (or + BTC) — déployé avec : npx wrangler deploy
+name = "desk-or"
+main = "desk-news-worker.js"
+compatibility_date = "2026-10-01"
+
+# Stockage de l'agent (lectures, bilan, bougies lentes)
+# id rempli après : npx wrangler kv namespace create DESK
+kv_namespaces = [
+  { binding = "DESK", id = "486378500db740ab8ba88ccecf7f41df" }
+]
+
+# Workers AI (IA de secours, gratuite)
+[ai]
+binding = "AI"
+
+# Un tour par minute : mesure du marché, lecture IA toutes les 30 min
+[triggers]
+crons = ["* * * * *"]

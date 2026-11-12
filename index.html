@@ -2810,7 +2810,7 @@ var WIRE={ts:0,tree:[],tg:[]};
 /* ---------- News Telegram (Walter Bloomberg, Watcher Guru, PhoenixNews, BWEnews, unfolded, Whale Alert) ----------
    Via le relais Cloudflare du Desk (relais/desk-news-worker.js), commun à tous les utilisateurs.
    Une seule requête par minute pour toutes les chaînes, seulement quand l'onglet est visible et dans un seul onglet. Vide = désactivé. */
-var TG_URL="https://desk-news.captainmanagement8.workers.dev";
+var TG_URL="https://desk-or.mon-desk.workers.dev";
 function wireParse(a){var out=[],seen={};
   (Array.isArray(a)?a:[]).forEach(function(x){if(!x||!x.title||!x.time)return;var s=x.source||"",t=String(x.en||x.title).replace(/\s+/g," ").trim(),src="",keep=false,kind="tree",h="",nm="";
     if(s==="Twitter"){var m=t.match(/^(.{1,60}?) \(@([A-Za-z0-9_]+)\):\s*(.*)$/);if(!m)return;h=m[2];
