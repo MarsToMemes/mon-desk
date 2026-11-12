@@ -54,7 +54,7 @@ function effet(k,d){if(!d||d.ch==null||d.c==null)return 0;
   return 0;}
 
 /* ---------------- État ---------------- */
-var G={k:{},lv:[],tf:"15m",fitTf:"",fund:{},oi:{},oi1h:null,seeded:false,ch:null,lines:[],lk:"",err:{ch:false,fx:false}};
+var G={mq:[],k:{},lv:[],tf:"15m",fitTf:"",fund:{},oi:{},oi1h:null,seeded:false,ch:null,lines:[],lk:"",err:{ch:false,fx:false}};
 var TFS=[["5m","5 min"],["15m","15 min"],["1H","1 h"]];
 var COL={veille:"#7FA8F0",jour:"#E8B931",asie:"#A99BEA",session:"#5FD3C6",rond:"#8E949E",rond10:"#5A5F68"};
 var u=null,$=function(id){return document.getElementById(id);};
@@ -115,7 +115,7 @@ function paintChart(){var host=$("orchart");if(!host)return;ensureDom();var box=
   if(!G.ch){box.innerHTML="";G.ch=makeChart(box);}
   G.ch.se.setData(K.map(bar));
   if(G.fitTf!==G.tf){G.ch.chart.timeScale().fitContent();G.fitTf=G.tf;}
-  lines();paintHead();}
+  lines();poseMq();paintHead();}
 function court(n){return n.replace("Haut de la veille","H. veille").replace("Bas de la veille","B. veille").replace("Ouverture du jour","Ouv. jour").replace("Haut de l'Asie","H. Asie")
   .replace("Bas de l'Asie","B. Asie").replace("Ouverture de Londres","Ouv. Londres").replace("Ouverture de New York","Ouv. NY").replace("Niveau rond ","");}
 function lines(){if(!G.ch)return;var p=prix(),L=lvNow(p);if(!L.length)return;var key=L.map(function(l){return l.type+l.prix;}).join("|");if(key===G.lk)return;G.lk=key;
@@ -163,6 +163,16 @@ function paintFlux(){var host=$("orflux");if(!host||!u)return;var S=CK.S||{},now
       '<div class="or-ll">'+(list.length?list.map(function(x){return '<div class="or-li"><span class="'+(x.long?"down":"up")+'">'+(x.long?"Long":"Short")+' liquidé</span><span class="or-ex">'+u.esc(x.ex)+'</span><b>'+u.usd(x.usd)+'</b><small>'+u.parisTime(x.ts)+'</small></div>';}).join(""):'<div class="empty">Aucune liquidation d\'or récente.</div>')+'</div></div>'+
     '</div>'+(G.err.fx?'<p class="or-note">Sources du perpétuel indisponibles, nouvel essai dans une minute.</p>':'');}
 
+/* ---------------- Marqueurs de convergence (posés par conv.js) ---------------- */
+var TFMS={"5m":3e5,"15m":9e5,"1H":36e5};
+function poseMq(){if(!G.ch)return;var ms=TFMS[G.tf],K=G.k[G.tf]||[];if(!K.length)return;var t0=K[0].t,vu={};
+  var arr=G.mq.filter(function(e){return e.t+9e5>t0;}).map(function(e){var tb=Math.floor((e.t+9e5-1)/ms)*ms,b=bar({t:tb,o:0,h:0,l:0,c:0});
+    return {time:b.time,position:e.sens>0?"belowBar":"aboveBar",color:e.sens>0?"#E8B931":"#FF6B6B",shape:e.sens>0?"arrowUp":"arrowDown",text:e.force==="forte"?"C+":"C"};})
+    .filter(function(m){if(vu[m.time])return false;vu[m.time]=1;return true;}).sort(function(a,b){return a.time-b.time;});
+  try{G.ch.se.setMarkers(arr);}catch(e){}}
+function marqueurs(list){G.mq=list||[];poseMq();}
+function etat(){return {lv:G.lv,fund:G.fund,oi1h:G.oi1h};}
+
 /* ---------------- Résumé (carte de l'accueil) ---------------- */
 function summary(){var p=prix(),L=lvNow(p),jo=L.filter(function(x){return x.type==="jour";})[0],pr=p?proches(L,p):{};
   return {px:p,ch:jo&&p?(p/jo.prix-1)*100:null,sess:session(Date.now()),haut:pr.haut,bas:pr.bas,closes:G.lv.slice(-48).map(function(k){return k.c;})};}
@@ -178,6 +188,6 @@ function boot(){u=CK.u;if(!$("orchart"))return;
   setInterval(function(){if(!document.hidden&&visible()){paintHead();lines();paintFlux();}},15000);
   CK.onLiqEvent=function(it,silent){if(!silent&&it&&it.base==="XAU"&&visible())paintFlux();};}
 
-CK.gold={boot:boot,tick:tick,visible:function(){return !!u&&visible();},paintMoteurs:paintMoteurs,summary:summary,
+CK.gold={boot:boot,etat:etat,marqueurs:marqueurs,tick:tick,visible:function(){return !!u&&visible();},paintMoteurs:paintMoteurs,summary:summary,
   calc:{parisOffset:parisOffset,parisMidnight:parisMidnight,parisHour:parisHour,parisDow:parisDow,session:session,parseK:parseK,niveaux:niveaux,proches:proches,effet:effet}};
 })();

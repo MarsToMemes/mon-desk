@@ -1401,3 +1401,27 @@ kbd{font:600 12px var(--mono);padding:1px 6px;border-radius:5px;box-shadow:inset
 .or-aide-n{font-style:italic}
 :root[data-theme="light"] .or-aide summary{color:#8A6510}
 @media (prefers-reduced-motion:reduce){.or-aide summary::after{transition:none}}
+
+/* ================= Convergences de l'or ================= */
+.cv{display:flex;flex-direction:column;gap:6px}
+.cv-band{padding:8px 12px;border-radius:8px;background:var(--hover);font:500 12.5px var(--font);color:var(--muted)}
+.cv-band.cv-warn{background:rgba(255,170,60,.12);color:var(--text)}
+.cv-hd{display:flex;align-items:center;gap:14px;padding:6px 0 8px;border-bottom:1px solid var(--line)}
+.cv-j{display:grid;grid-template-columns:repeat(5,12px);gap:4px}
+.cv-j i{height:26px;border-radius:3px;background:var(--line-2)}
+.cv-j i.up{background:#E8B931}.cv-j i.down{background:var(--down)}
+.cv-hd>div:last-child{display:flex;flex-direction:column;gap:2px}
+.cv-etat{font:700 15px var(--font)}.cv-etat.up{color:#E8B931}.cv-etat.down{color:var(--down)}
+.cv-hd small{font:500 12px var(--mono);color:var(--muted)}
+.cv-l{display:grid;grid-template-columns:22px 74px 1fr;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font:400 12.5px var(--font);color:var(--muted)}
+.cv-l b{color:var(--text);font-weight:600}
+.cv-i{font:700 12px var(--font);text-align:center}.cv-i.up{color:#E8B931}.cv-i.down{color:var(--down)}
+.cv-t{margin:2px 0 0;font:400 11.5px var(--font);color:var(--muted)}
+.cv-st{margin:10px 0 2px;font:700 11px var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cv-vide{font:400 12.5px var(--font);color:var(--muted)}
+.cv-h{display:flex;flex-direction:column;max-height:180px;overflow:auto}
+.cv-hr{display:grid;grid-template-columns:44px 1fr 62px 58px 58px 58px;gap:6px;padding:5px 0;border-bottom:1px solid var(--line);font:500 12px var(--mono)}
+.cv-hh{font:600 10.5px var(--font);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.cv-hr .up{color:#E8B931}.cv-hr .down{color:var(--down)}.cv-na{color:var(--muted)}
+:root[data-theme="light"] .cv-j i.up,:root[data-theme="light"] .cv-etat.up,:root[data-theme="light"] .cv-i.up,:root[data-theme="light"] .cv-hr .up{color:#8A6510}
+:root[data-theme="light"] .cv-j i.up{background:#B08414}
