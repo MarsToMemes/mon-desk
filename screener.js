@@ -64,13 +64,16 @@ function get(url,tries){var wait=Math.max(0,lastReq+75-Date.now());lastReq=Math.
 var UTCBAR={"1D":"1Dutc","4H":"4Hutc"};
 function candles(inst,bar){return get(OKX+"/api/v5/market/candles?instId="+inst+"&bar="+(UTCBAR[bar]||bar)+"&limit=300").then(function(j){
   return (j.data||[]).filter(function(c){return c[8]==="1";}).reverse().map(function(c){return {h:+c[2],l:+c[3],c:+c[4],v:+c[7]||+c[5]};});});}
+/* L'or (perpétuel OKX) est toujours analysé et épinglé en tête du tableau */
+var OR_INST={"XAU-USDT-SWAP":1};
+function estOr(r){return !!(r&&OR_INST[r.inst]);}
 function universe(){
   var m=lsj("scanMarkets")||{spot:true,perp:true,volMin:5};var all=[];
   if(m.spot!==false)all=all.concat(S.uni.spot.map(function(x){return {base:x.base,inst:x.inst,type:"spot",usd:x.usd,chg:x.chg,last:x.last};}));
   if(m.perp!==false)all=all.concat(S.uni.perp.map(function(x){return {base:x.base,inst:x.inst,type:"perp",usd:x.usd,chg:x.chg,last:x.last};}));
-  /* Cryptos uniquement : on écarte les actions et matières premières tokenisées (catégorie OKX ≠ 1) */
+  /* Cryptos uniquement : on écarte les actions et matières premières tokenisées (catégorie OKX ≠ 1), sauf l'or (OR_INST) */
   var cat=S.cat||{},hasCat=Object.keys(cat).length>0;
-  var by={};all.filter(function(x){return x.usd>=(m.volMin||0)*1e6&&(!hasCat||cat[x.inst]==="1");}).forEach(function(x){var b=by[x.base];
+  var by={};all.filter(function(x){return OR_INST[x.inst]||(x.usd>=(m.volMin||0)*1e6&&(!hasCat||cat[x.inst]==="1"));}).forEach(function(x){var b=by[x.base];
     if(!b)by[x.base]={pick:x,usd:x.usd};else{b.usd+=x.usd;if(x.type==="spot")b.pick=x;}});
   return Object.keys(by).map(function(k){var o=by[k].pick;o.usd=by[k].usd;return o;}).sort(function(a,b){return b.usd-a.usd;}).slice(0,CK.cfg().screenerMax||150);
 }
@@ -145,19 +148,25 @@ function render(){
   var body=u.$("scanBody");if(!body)return;var c=st.conds,d=st.data[st.tf];
   u.$("scanHead").innerHTML="<tr>"+COLS.map(function(x){return '<th data-key="'+x[0]+'" class="'+(x[2]||"")+'">'+x[1]+(st.sort&&st.sort[0]===x[0]?'<span class="ar">'+(st.sort[1]==="asc"?"▲":"▼")+'</span>':'')+'</th>';}).join("")+"</tr>";
   var cat=S.cat||{},hc=Object.keys(cat).length>0;if(d&&d.rows)enrich(d.rows);if(d&&!st.scanning)loadDeriv();
-  var rows=(d&&d.rows||[]).filter(function(r){return (!hc||cat[r.inst]==="1")&&pass(r,c)&&(!st.favOnly||st.favs.indexOf(r.t)>=0)&&(!st.search||r.t.toLowerCase().indexOf(st.search)>=0);});
+  var cherche=function(r){return !st.search||r.t.toLowerCase().indexOf(st.search)>=0||(estOr(r)&&"or".indexOf(st.search)===0);};
+  var rows=(d&&d.rows||[]).filter(function(r){return !estOr(r)&&(!hc||cat[r.inst]==="1")&&pass(r,c)&&(!st.favOnly||st.favs.indexOf(r.t)>=0)&&cherche(r);});
   var k=st.sort?st.sort[0]:"chop",dir=st.sort?st.sort[1]:"desc";
   rows.sort(function(a,b){var x=sv(a,k),y=sv(b,k);var r=typeof x==="string"?x.localeCompare(y):x-y;return dir==="asc"?r:-r;});
+  /* L'or toujours en tête, qu'il remplisse ou non les conditions du préréglage (il est marqué « épinglé ») */
+  var orRow=(d&&d.rows||[]).filter(function(r){return estOr(r)&&(!st.favOnly||st.favs.indexOf(r.t)>=0)&&cherche(r);})[0];
+  if(orRow){orRow._passe=pass(orRow,c);rows.unshift(orRow);}
+  var nRes=rows.length-(orRow&&!orRow._passe?1:0);   /* l'or épinglé ne compte que s'il remplit les conditions */
   var meta=u.$("scanMeta");
-  if(d){var tfl=st.tf==="1D"?"journalier":"4 h";meta.textContent=st.scanning?("Analyse… "+d.rows.length+"/"+d.n+" · "+rows.length+" résultat"+(rows.length>1?"s":"")):
-    (rows.length+" résultat"+(rows.length>1?"s":"")+" sur "+d.rows.length+" coins · "+tfl+(d.ts?" · "+u.ago(d.ts):""));}
+  if(d){var tfl=st.tf==="1D"?"journalier":"4 h";meta.textContent=st.scanning?("Analyse… "+d.rows.length+"/"+d.n+" · "+nRes+" résultat"+(nRes>1?"s":"")):
+    (nRes+" résultat"+(nRes>1?"s":"")+" sur "+d.rows.length+" coins · "+tfl+(d.ts?" · "+u.ago(d.ts):""));}
   var empty=u.$("scanState");
   if(!rows.length){body.innerHTML="";empty.hidden=false;empty.textContent=st.scanning?"Analyse en cours, les résultats apparaissent au fur et à mesure…":!d?"Lancement de l'analyse…":
     (st.search||st.favOnly)?"Aucun coin ne correspond à ta recherche ou à tes favoris.":"Aucun coin ne remplit ces conditions en ce moment. Assouplis un filtre ou essaie un autre préréglage.";return;}
   empty.hidden=true;
   var seen=render.seen||(render.seen={});
   body.innerHTML=rows.slice(0,80).map(function(r){var tr=trendOf(r),fav=st.favs.indexOf(r.t)>=0,sym="OKX:"+r.t+"USDT"+(r.type==="perp"?".P":""),isNew=!seen[r.t];seen[r.t]=1;
-    return '<tr class="clk'+(isNew?" in":"")+'" data-chart="'+sym+'" data-title="'+esc(r.t)+'"><td><div class="coin"><button type="button" class="star'+(fav?" on":"")+'" data-star="'+esc(r.t)+'" aria-label="Favori">★</button>'+u.logo(r.t)+'<div><div class="t">'+esc(r.t)+'</div><div class="n">'+(r.type==="perp"?"Perp":"Spot")+' · '+u.usd(r.usd)+'</div></div></div></td>'+
+    var or=estOr(r);
+    return '<tr class="clk'+(isNew?" in":"")+(or?" sc-or":"")+'" data-chart="'+sym+'" data-title="'+(or?"Or":esc(r.t))+'"><td><div class="coin"><button type="button" class="star'+(fav?" on":"")+'" data-star="'+esc(r.t)+'" aria-label="Favori">★</button>'+(or?'<span class="sc-or-ic" aria-hidden="true">Au</span>':u.logo(r.t))+'<div><div class="t">'+(or?"Or · XAU":esc(r.t))+'</div><div class="n">'+(or?(r._passe?"Épinglé · remplit les conditions":"Épinglé")+' · '+u.usd(r.usd):(r.type==="perp"?"Perp":"Spot")+' · '+u.usd(r.usd))+'</div></div></div></td>'+
       '<td class="r mono">'+u.px(r.px)+'</td><td class="r mono '+u.cls(r.chg)+'">'+u.pct(r.chg,1)+'</td>'+
       '<td><span class="pill '+tr.c+'">'+tr.t+'</span></td>'+
       '<td class="r mono">'+(r.chop!=null?Math.round(r.chop):"–")+'</td><td class="r mono">'+(r.rsi!=null?Math.round(r.rsi):"–")+'</td>'+

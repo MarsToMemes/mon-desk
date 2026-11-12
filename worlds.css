@@ -1380,3 +1380,11 @@ kbd{font:600 12px var(--mono);padding:1px 6px;border-radius:5px;box-shadow:inset
 :root[data-theme="light"] .or-wk{background:rgba(176,132,20,.12)}
 :root[data-theme="light"] .or-tf button[aria-pressed="true"]{border-color:#B08414;background:rgba(176,132,20,.12)}
 @media (max-width:900px){.or-fx{grid-template-columns:1fr}.or-se{margin-left:0;align-items:flex-start}.or-ch{min-height:280px}}
+
+/* Screener : l'or épinglé en tête */
+.sc-or td{background:rgba(232,185,49,.07)}
+.sc-or td:first-child{box-shadow:inset 3px 0 0 #E8B931}
+.sc-or .t{color:#E8B931}
+.sc-or-ic{flex:none;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#F5D77A,#B8860B);color:#2A1E00;font:800 9.5px var(--font)}
+:root[data-theme="light"] .sc-or .t{color:#8A6510}
+:root[data-theme="light"] .sc-or td{background:rgba(176,132,20,.08)}
