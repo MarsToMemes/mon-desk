@@ -18,7 +18,7 @@ Repérer et afficher, dans l'espace Or, les moments où plusieurs familles de si
 
 ## Niveau de convergence
 - **Forte** : ≥ 4 votes dans un sens, 0 contre.
-- **Convergence** : 3 votes dans un sens, ≤ 1 contre.
+- **Convergence** : au moins 3 votes dans un sens, au plus 1 contre (et pas « forte »).
 - Sinon **aucune** (décompte affiché : n ▲ · n ▼ · n neutres).
 
 ## Affichage
