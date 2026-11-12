@@ -1388,3 +1388,16 @@ kbd{font:600 12px var(--mono);padding:1px 6px;border-radius:5px;box-shadow:inset
 .sc-or-ic{flex:none;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#F5D77A,#B8860B);color:#2A1E00;font:800 9.5px var(--font)}
 :root[data-theme="light"] .sc-or .t{color:#8A6510}
 :root[data-theme="light"] .sc-or td{background:rgba(176,132,20,.08)}
+
+/* Espace Or : encadré « Comment lire cet espace » */
+.or-aide{margin-top:12px;border:1px solid var(--line);border-radius:10px;background:var(--hover)}
+.or-aide summary{cursor:pointer;list-style:none;padding:10px 14px;font:600 13px var(--font);color:#E8B931;display:flex;align-items:center;gap:8px}
+.or-aide summary::-webkit-details-marker{display:none}
+.or-aide summary::before{content:"?";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;border:1px solid currentColor;font:700 11px var(--font)}
+.or-aide summary::after{content:"▾";margin-left:auto;transition:transform .2s var(--ease-out,ease)}
+.or-aide[open] summary::after{transform:rotate(180deg)}
+.or-aide-c{padding:0 14px 12px;display:flex;flex-direction:column;gap:8px;font:400 12.5px/1.5 var(--font);color:var(--muted)}
+.or-aide-c p{margin:0}.or-aide-c b{color:var(--text);font-weight:600}
+.or-aide-n{font-style:italic}
+:root[data-theme="light"] .or-aide summary{color:#8A6510}
+@media (prefers-reduced-motion:reduce){.or-aide summary::after{transition:none}}

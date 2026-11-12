@@ -2223,6 +2223,19 @@ kbd{font:600 12px var(--mono);padding:1px 6px;border-radius:5px;box-shadow:inset
 .sc-or-ic{flex:none;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#F5D77A,#B8860B);color:#2A1E00;font:800 9.5px var(--font)}
 :root[data-theme="light"] .sc-or .t{color:#8A6510}
 :root[data-theme="light"] .sc-or td{background:rgba(176,132,20,.08)}
+
+/* Espace Or : encadré « Comment lire cet espace » */
+.or-aide{margin-top:12px;border:1px solid var(--line);border-radius:10px;background:var(--hover)}
+.or-aide summary{cursor:pointer;list-style:none;padding:10px 14px;font:600 13px var(--font);color:#E8B931;display:flex;align-items:center;gap:8px}
+.or-aide summary::-webkit-details-marker{display:none}
+.or-aide summary::before{content:"?";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;border:1px solid currentColor;font:700 11px var(--font)}
+.or-aide summary::after{content:"▾";margin-left:auto;transition:transform .2s var(--ease-out,ease)}
+.or-aide[open] summary::after{transform:rotate(180deg)}
+.or-aide-c{padding:0 14px 12px;display:flex;flex-direction:column;gap:8px;font:400 12.5px/1.5 var(--font);color:var(--muted)}
+.or-aide-c p{margin:0}.or-aide-c b{color:var(--text);font-weight:600}
+.or-aide-n{font-style:italic}
+:root[data-theme="light"] .or-aide summary{color:#8A6510}
+@media (prefers-reduced-motion:reduce){.or-aide summary::after{transition:none}}
 </style>
 <script>
 /* ================================================================
@@ -6030,7 +6043,20 @@ CK.sound={
 
   <section class="mod" data-mod="ormoteurs">
     <header class="mhd"><span class="mno"></span><h2>Moteurs de l'or</h2><span class="meta">TradingView</span></header>
-    <div class="card"><div class="or-mot" id="ormoteurs"><div class="empty">Chargement des moteurs…</div></div></div>
+    <div class="card"><div class="or-mot" id="ormoteurs"><div class="empty">Chargement des moteurs…</div></div>
+      <details class="or-aide">
+        <summary>Comment lire cet espace</summary>
+        <div class="or-aide-c">
+          <p><b>Niveaux.</b> Les pointillés sont des zones où le marché réagit souvent : veille, Asie, ouvertures du jour, de Londres et de New York, niveaux ronds. Une cassure ne compte qu'à la <b>clôture</b> d'une bougie ; une mèche qui dépasse puis revient est souvent un piège.</p>
+          <p><b>Moteurs.</b> Dollar et taux en hausse : vent contraire pour l'or ; en baisse : soutien. L'argent qui suit confirme le mouvement des métaux.</p>
+          <p><b>Flux.</b> Funding positif et élevé : marché chargé en acheteurs à levier, donc fragile. Prix en hausse et open interest en hausse : nouveaux acheteurs ; prix et open interest en baisse : vendeurs purgés, souvent près d'une fin de baisse.</p>
+          <p><b>Agenda.</b> Autour de 14 h 30 (CPI, emploi, PCE) et des annonces de la Fed, l'or peut bouger fort en quelques minutes : les niveaux tiennent moins bien.</p>
+          <p><b>Agent IA</b> (espace Agent). Deux scénarios conditionnels toutes les 30 min. Ce sont des hypothèses, pas des signaux : regarde l'onglet <b>Bilan</b> plusieurs semaines avant de leur faire confiance.</p>
+          <p><b>Méthode.</b> Cherche la convergence de plusieurs éléments plutôt qu'un indice isolé. Sache où tu as tort avant d'entrer (souvent le niveau d'en face). Méfie-toi juste avant une annonce et le week-end (marché de l'or fermé). Dimensionne avec le calculateur de position, et entraîne-toi d'abord en démo.</p>
+          <p class="or-aide-n">Le Desk ne donne aucun conseil d'achat ou de vente : la décision et le risque restent les tiens.</p>
+        </div>
+      </details>
+    </div>
   </section>
 
   <section class="mod" data-mod="orflux">
