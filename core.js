@@ -15,9 +15,9 @@ CK.reduce = reduce;
 var DEF = {
   id:"captain", name:"captain", tagline:"Trading · Desk", data:"", accent:"#FF8A3D", theme:"dark", beginner:false,
   watchlist:["BTC","ETH","SOL"],
-  modules:{day:true,map:true,events:true,deriv:true,liq:true,movers:true,screener:true,news:true,levels:true,opts:true,book:true,corr:true,net:true,veille:true},
+  modules:{day:true,map:true,events:true,deriv:true,liq:true,movers:true,screener:true,news:true,levels:true,opts:true,book:true,corr:true,net:true,veille:true,orchart:true,ormoteurs:true,orflux:true},
   layout:null,
-  espaces:{journee:true,macro:true,screener:true,liq:true,news:true,veille:true,net:true},   // false = espace masqué (accueil, navigation, raccourcis)
+  espaces:{or:true,journee:true,macro:true,screener:true,liq:true,news:true,veille:true,net:true},   // false = espace masqué (accueil, navigation, raccourcis)
   moversMarket:"spot", moversMinVolume:2000000, liqMin:25000,
   screenerPreset:"compression", screenerMax:150, newsLang:"fr"
 };
@@ -145,7 +145,7 @@ function applyIdentity(){
   var fav=document.querySelector('link[rel="icon"]');if(!fav){fav=document.createElement("link");fav.rel="icon";fav.type="image/png";fav.href=LOGO.fav;document.head.appendChild(fav);}
   document.body.classList.toggle("beginner",!!C.beginner);
   /* Un bloc disparaît aussi si son espace est décoché dans le Studio (ex. Screener) */
-  var ESPM={day:"journee",events:"journee",map:"macro",screener:"screener",liq:"liq",deriv:"liq",movers:"liq",news:"news",veille:"veille",net:"net"},E=C.espaces||{};
+  var ESPM={day:"journee",events:"journee",map:"macro",screener:"screener",liq:"liq",deriv:"liq",movers:"liq",news:"news",veille:"veille",net:"net",orchart:"or",ormoteurs:"or",orflux:"or"},E=C.espaces||{};
   Object.keys(DEF.modules).forEach(function(k){var on=(!C.modules||C.modules[k]!==false)&&!(ESPM[k]&&E[ESPM[k]]===false);document.querySelectorAll('[data-mod="'+k+'"]').forEach(function(el){el.hidden=!on;});});
   if(CK.layout)CK.layout.refresh();
 }
@@ -178,7 +178,7 @@ function roll(el,txt,up){var old=el.getAttribute("data-v")||"";if(old===txt)retu
   [].forEach.call(el.children,function(s,i){if(txt[i]!==old[i]&&s.animate)s.animate([{transform:"translateY("+(up?"70%":"-70%")+")",opacity:0},{transform:"none",opacity:1}],{duration:280,easing:"cubic-bezier(.23,1,.32,1)"});});}
 CK.roll=roll;
 var tickQueued=false;
-function queueTicks(){if(tickQueued)return;tickQueued=true;setTimeout(function(){tickQueued=false;paintTicks();if(CK.liqmap)CK.liqmap.price();},300);}
+function queueTicks(){if(tickQueued)return;tickQueued=true;setTimeout(function(){tickQueued=false;paintTicks();if(CK.liqmap)CK.liqmap.price();if(CK.gold)CK.gold.tick();},300);}
 function paintMacroStrip(){
   LEAD_STRIP.concat(MACRO_STRIP).forEach(function(m){var d=S.mk[m.k];var pe=document.querySelector('[data-mp="'+m.k+'"]'),ce=document.querySelector('[data-mc="'+m.k+'"]');if(!d||!pe)return;
     if(m.k==="US10Y"){pe.textContent=nf(d.c,3)+" %";var bp=d.c-d.c/(1+(d.ch||0)/100);ce.textContent=(bp>=0?"+":"−")+nf(Math.abs(bp*100),1)+" pb";ce.className="c "+cls(bp);}
@@ -186,7 +186,7 @@ function paintMacroStrip(){
 }
 
 /* ---------------- Temps réel : OKX (prix + liquidations), Bybit, Binance ---------------- */
-var LIQ_BASES=["BTC","ETH","SOL","XRP","DOGE","SUI","BNB","ADA","LINK","AVAX"];
+var LIQ_BASES=["BTC","ETH","SOL","XRP","DOGE","SUI","BNB","ADA","LINK","AVAX","XAU"];
 var wsUp={OKX:false,Bybit:false,Binance:false};
 function setWsState(){var on=Object.keys(wsUp).filter(function(k){return wsUp[k];});$("wsState").textContent=on.length?"Temps réel · "+on.join(", "):"Connexion au temps réel…";}
 function socket(name,url,onOpen,onMsg,pingMsg){
@@ -202,7 +202,7 @@ function socket(name,url,onOpen,onMsg,pingMsg){
   go();return {send:function(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}};
 }
 var okx=null,okxSent={};
-function tickerInsts(){var s={};["BTC","ETH","SOL"].concat(watch()).forEach(function(b){s[b+"-USDT"]=1;});(CK.alertInsts?CK.alertInsts():[]).forEach(function(i){s[i]=1;});return Object.keys(s);}
+function tickerInsts(){var s={};["BTC","ETH","SOL"].concat(watch()).forEach(function(b){s[b+"-USDT"]=1;});s["XAU-USDT-SWAP"]=1;(CK.alertInsts?CK.alertInsts():[]).forEach(function(i){s[i]=1;});return Object.keys(s);}
 function okxSub(all){var args=[];if(all){okxSent={};args.push({channel:"liquidation-orders",instType:"SWAP"});}
   tickerInsts().forEach(function(i){if(!okxSent[i]){okxSent[i]=1;args.push({channel:"tickers",instId:i});}});
   for(var i=0;i<args.length;i+=20)okx.send({op:"subscribe",args:args.slice(i,i+20)});}
@@ -234,8 +234,10 @@ var LIQ_WIN=4*3600000;
 function addLiqEvent(it,key,silent){
   if(S.liqSeen[key])return;S.liqSeen[key]=1;S.liqHist.push(it);
   if(!silent&&it.usd>=(C.liqMin||0))addLiqRow(it);
+  if(CK.onLiqEvent)try{CK.onLiqEvent(it,silent);}catch(e){}
   if(Object.keys(S.liqSeen).length>6000)S.liqSeen={};
 }
+CK.addLiqEvent=addLiqEvent;
 function addLiqRow(it){var host=$("liqFeed");if(!host)return;var em=host.querySelector(".empty");if(em)em.remove();
   var el=document.createElement("div");el.className="fi new"+(it.usd>=Math.max(250000,(C.liqMin||0)*10)?" big":"");
   el.innerHTML=logo(it.base)+'<div class="w"><b>'+esc(it.base)+'</b> '+(it.long?'<span class="down">long liquidé</span>':'<span class="up">short liquidé</span>')+'<span class="ex">'+it.ex+'</span><small data-ago="'+it.ts+'">'+ago(it.ts)+'</small></div><span class="amt">'+usd(it.usd)+'</span>';
@@ -260,7 +262,7 @@ function renderLiqSum(){
 }
 
 /* ---------------- Macro : scanner TradingView (en direct) ---------------- */
-var TVS={DXY:"TVC:DXY",US10Y:"TVC:US10Y",ZN:"CBOT:ZN1!",NDX:"NASDAQ:NDX",SPX:"SP:SPX",VIX:"TVC:VIX",GOLD:"TVC:GOLD",BTC:"OKX:BTCUSDT",TOTAL2:"CRYPTOCAP:TOTAL2",USDTD:"CRYPTOCAP:USDT.D",BTCD:"CRYPTOCAP:BTC.D"};
+var TVS={DXY:"TVC:DXY",US10Y:"TVC:US10Y",ZN:"CBOT:ZN1!",NDX:"NASDAQ:NDX",SPX:"SP:SPX",VIX:"TVC:VIX",GOLD:"TVC:GOLD",SILVER:"TVC:SILVER",BTC:"OKX:BTCUSDT",TOTAL2:"CRYPTOCAP:TOTAL2",USDTD:"CRYPTOCAP:USDT.D",BTCD:"CRYPTOCAP:BTC.D"};
 CK.TVS=TVS;
 var TV_COLS=["close","change","SMA20","SMA50","SMA200","Perf.W","Perf.1M","High.3M","Low.3M","ADX"];
 function loadMacro(){
@@ -268,14 +270,18 @@ function loadMacro(){
   return fetchJSON(TV_SCAN,{method:"POST",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:JSON.stringify({symbols:{tickers:keys.map(function(k){return TVS[k];})},columns:TV_COLS})})
     .then(function(j){var by={};(j.data||[]).forEach(function(o){by[o.s]=o.d;});
       keys.forEach(function(k){var d=by[TVS[k]];if(!d)return;S.mk[k]={c:d[0],ch:d[1],s20:d[2],s50:d[3],s200:d[4],pw:d[5],pm:d[6],h3:d[7],l3:d[8],adx:d[9]};});
-      paintMacroStrip();computeFactors();
+      paintMacroStrip();computeFactors();if(CK.gold)CK.gold.paintMoteurs();
     }).catch(function(){computeFactors();});
 }
-/* L'or seul, plus souvent (toutes les 20 s, onglet visible) : c'est le premier prix de la barre */
+/* L'or seul, plus souvent (toutes les 20 s, onglet visible) : c'est le premier prix de la barre.
+   Quand l'espace Or est à l'écran, on prend aussi ses moteurs (dollar, taux, argent). */
 function loadGold(){
   if(document.hidden)return Promise.resolve();
-  return fetchJSON(TV_SCAN,{method:"POST",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:JSON.stringify({symbols:{tickers:[TVS.GOLD]},columns:["close","change"]})})
-    .then(function(j){var d=j&&j.data&&j.data[0]&&j.data[0].d;if(!d||d[0]==null)return;S.mk.GOLD=Object.assign({},S.mk.GOLD,{c:d[0],ch:d[1]});paintMacroStrip();}).catch(function(){});
+  var keys=["GOLD"].concat(CK.gold&&CK.gold.visible()?["DXY","US10Y","SILVER"]:[]);
+  return fetchJSON(TV_SCAN,{method:"POST",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:JSON.stringify({symbols:{tickers:keys.map(function(k){return TVS[k];})},columns:["close","change"]})})
+    .then(function(j){var by={};(j&&j.data||[]).forEach(function(o){by[o.s]=o.d;});
+      keys.forEach(function(k){var d=by[TVS[k]];if(!d||d[0]==null)return;S.mk[k]=Object.assign({},S.mk[k],{c:d[0],ch:d[1]});});
+      paintMacroStrip();if(CK.gold)CK.gold.paintMoteurs();}).catch(function(){});
 }
 
 /* ---------------- Données crypto ---------------- */
@@ -772,7 +778,7 @@ function safe(fn){try{fn();}catch(e){if(window.console)console.error("[cockpit]"
 CK.boot=function(){
   applyIdentity();syncThemeBtns();buildStrip();wire();
   S.moversMkt=C.moversMarket;S.newsLang=C.newsLang;
-  [function(){if(CK.bg)CK.bg.boot();},function(){if(CK.layout)CK.layout.boot();},function(){if(CK.day)CK.day.boot();},function(){if(CK.map)CK.map.boot();},function(){if(CK.liqmap)CK.liqmap.boot();},function(){if(CK.pos)CK.pos.boot();},function(){if(CK.extra)CK.extra.boot();},function(){if(CK.veille)CK.veille.boot();},function(){if(CK.screener)CK.screener.boot();},function(){if(CK.ui)CK.ui.boot();},function(){if(CK.hub)CK.hub.boot();},function(){if(CK.worlds)CK.worlds.boot();},function(){if(CK.sound)CK.sound.boot();},function(){if(CK.net)CK.net.boot();}].forEach(safe);
+  [function(){if(CK.bg)CK.bg.boot();},function(){if(CK.layout)CK.layout.boot();},function(){if(CK.day)CK.day.boot();},function(){if(CK.map)CK.map.boot();},function(){if(CK.liqmap)CK.liqmap.boot();},function(){if(CK.pos)CK.pos.boot();},function(){if(CK.extra)CK.extra.boot();},function(){if(CK.veille)CK.veille.boot();},function(){if(CK.gold)CK.gold.boot();},function(){if(CK.screener)CK.screener.boot();},function(){if(CK.ui)CK.ui.boot();},function(){if(CK.hub)CK.hub.boot();},function(){if(CK.worlds)CK.worlds.boot();},function(){if(CK.sound)CK.sound.boot();},function(){if(CK.net)CK.net.boot();}].forEach(safe);
   renderLiqSum();renderNews();
   loadInstruments().then(function(){startSockets();seedLiq();});
   loadMacro();
