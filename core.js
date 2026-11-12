@@ -152,11 +152,15 @@ function applyIdentity(){
 CK.applyIdentity=applyIdentity;
 
 /* ---------------- Barre de prix ---------------- */
-var MACRO_STRIP=[{k:"SPX",n:"S&P 500"},{k:"NDX",n:"Nasdaq"},{k:"DXY",n:"Dollar"},{k:"US10Y",n:"Taux 10 ans"},{k:"VIX",n:"VIX"},{k:"GOLD",n:"Or"}];
+/* L'or ouvre la barre du haut (mis en avant), puis les cryptos suivies, puis la macro */
+var LEAD_STRIP=[{k:"GOLD",n:"Or · XAU"}];
+var MACRO_STRIP=[{k:"SPX",n:"S&P 500"},{k:"NDX",n:"Nasdaq"},{k:"DXY",n:"Dollar"},{k:"US10Y",n:"Taux 10 ans"},{k:"VIX",n:"VIX"}];
 function watch(){var w=(C.watchlist&&C.watchlist.length?C.watchlist:DEF.watchlist).map(function(x){return String(x).trim().toUpperCase().replace(/[^A-Z0-9]/g,"");}).filter(Boolean);return w.slice(0,12);}
 CK.watch=watch;
 function buildStrip(){
-  var h=watch().map(function(b){return '<button type="button" class="tk" data-chart="OKX:'+esc(b)+'USDT" data-title="'+esc(b)+'"><span class="s">'+esc(b)+'</span><span class="p" data-p="'+esc(b)+'">—</span><span class="c" data-c="'+esc(b)+'"></span></button>';}).join("");
+  var h=LEAD_STRIP.map(function(m){return '<button type="button" class="tk tk-lead" data-chart="'+TVS[m.k]+'" data-title="'+m.n+'"><span class="s">'+m.n+'</span><span class="p" data-mp="'+m.k+'">—</span><span class="c" data-mc="'+m.k+'"></span></button>';}).join("");
+  h+='<span class="tk sep" aria-hidden="true"></span>';
+  h+=watch().map(function(b){return '<button type="button" class="tk" data-chart="OKX:'+esc(b)+'USDT" data-title="'+esc(b)+'"><span class="s">'+esc(b)+'</span><span class="p" data-p="'+esc(b)+'">—</span><span class="c" data-c="'+esc(b)+'"></span></button>';}).join("");
   h+='<span class="tk sep" aria-hidden="true"></span>';
   h+=MACRO_STRIP.map(function(m){return '<button type="button" class="tk" data-chart="'+TVS[m.k]+'" data-title="'+m.n+'"><span class="s">'+m.n+'</span><span class="p" data-mp="'+m.k+'">—</span><span class="c" data-mc="'+m.k+'"></span></button>';}).join("");
   $("strip").innerHTML=h;paintTicks();paintMacroStrip();
@@ -176,7 +180,7 @@ CK.roll=roll;
 var tickQueued=false;
 function queueTicks(){if(tickQueued)return;tickQueued=true;setTimeout(function(){tickQueued=false;paintTicks();if(CK.liqmap)CK.liqmap.price();},300);}
 function paintMacroStrip(){
-  MACRO_STRIP.forEach(function(m){var d=S.mk[m.k];var pe=document.querySelector('[data-mp="'+m.k+'"]'),ce=document.querySelector('[data-mc="'+m.k+'"]');if(!d||!pe)return;
+  LEAD_STRIP.concat(MACRO_STRIP).forEach(function(m){var d=S.mk[m.k];var pe=document.querySelector('[data-mp="'+m.k+'"]'),ce=document.querySelector('[data-mc="'+m.k+'"]');if(!d||!pe)return;
     if(m.k==="US10Y"){pe.textContent=nf(d.c,3)+" %";var bp=d.c-d.c/(1+(d.ch||0)/100);ce.textContent=(bp>=0?"+":"−")+nf(Math.abs(bp*100),1)+" pb";ce.className="c "+cls(bp);}
     else{pe.textContent=px(d.c);ce.textContent=pct(d.ch);ce.className="c "+cls(d.ch);}});
 }
@@ -266,6 +270,12 @@ function loadMacro(){
       keys.forEach(function(k){var d=by[TVS[k]];if(!d)return;S.mk[k]={c:d[0],ch:d[1],s20:d[2],s50:d[3],s200:d[4],pw:d[5],pm:d[6],h3:d[7],l3:d[8],adx:d[9]};});
       paintMacroStrip();computeFactors();
     }).catch(function(){computeFactors();});
+}
+/* L'or seul, plus souvent (toutes les 20 s, onglet visible) : c'est le premier prix de la barre */
+function loadGold(){
+  if(document.hidden)return Promise.resolve();
+  return fetchJSON(TV_SCAN,{method:"POST",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:JSON.stringify({symbols:{tickers:[TVS.GOLD]},columns:["close","change"]})})
+    .then(function(j){var d=j&&j.data&&j.data[0]&&j.data[0].d;if(!d||d[0]==null)return;S.mk.GOLD=Object.assign({},S.mk.GOLD,{c:d[0],ch:d[1]});paintMacroStrip();}).catch(function(){});
 }
 
 /* ---------------- Données crypto ---------------- */
@@ -777,6 +787,7 @@ CK.boot=function(){
   setInterval(function(){tickNext();tickFunding();},1000);
   setInterval(function(){renderLiqSum();document.querySelectorAll("[data-ago]").forEach(function(e){e.textContent=ago(+e.getAttribute("data-ago"));});},2000);
   setInterval(loadMacro,120000);
+  setInterval(loadGold,20000);
   setInterval(function(){Promise.all([loadBTCdaily(),loadFunding(),loadOI()]).then(computeFactors);},600000);
   setInterval(function(){loadFG().then(computeFactors);},1800000);
   setInterval(loadMovers,60000);

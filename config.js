@@ -10,7 +10,7 @@ window.COCKPIT_CONFIG = {
   accent: "#FF8A3D",             // couleur d'accent (toute l'interface suit)
   theme: "dark",                 // affichage au premier lancement : "dark" ou "light"
   beginner: false,               // true = boutons « ? » qui expliquent chaque module
-  watchlist: ["BTC", "ETH", "SOL"], // cryptos suivies dans la barre du haut
+  watchlist: ["BTC"],            // cryptos suivies dans la barre du haut (l'or est toujours affiché en premier)
   modules: {                     // false = module masqué
     day: true, map: true, events: true, deriv: true, liq: true, movers: true, screener: true, news: true,
     levels: true, opts: true, book: true, corr: true, net: true, veille: true
